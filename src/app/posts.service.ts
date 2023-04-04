@@ -1,7 +1,12 @@
-import { HttpClient } from '@angular/common/http';
+import {
+  HttpClient,
+  HttpEventType,
+  HttpHeaders,
+  HttpParams,
+} from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { Post } from './post.model';
-import { map, catchError } from 'rxjs/operators';
+import { map, catchError, tap } from 'rxjs/operators';
 import { Subject, throwError } from 'rxjs';
 
 @Injectable({ providedIn: 'root' })
@@ -14,7 +19,9 @@ export class PostsService {
   createAndStorePost(title: string, content: string) {
     const postData: Post = { title: title, content: content };
     this.http
-      .post<{ name: string }>(`${this.url}/posts.json`, postData)
+      .post<{ name: string }>(`${this.url}/posts.json`, postData, {
+        observe: 'response',
+      })
       .subscribe(
         (responseData) => {
           console.log(responseData);
@@ -26,8 +33,16 @@ export class PostsService {
   }
 
   fetchPosts() {
+    let searchParams = new HttpParams();
+    searchParams = searchParams.append('print', 'pretty');
+    searchParams = searchParams.append('custom', 'key');
+
     return this.http
-      .get<{ [key: string]: Post }>(`${this.url}/posts.json`)
+      .get<{ [key: string]: Post }>(`${this.url}/posts.json`, {
+        headers: new HttpHeaders({ 'Custom-Header': 'Hello!' }),
+        params: searchParams,
+        responseType: 'json',
+      })
       .pipe(
         map((responseData) => {
           const postsArray: Post[] = [];
@@ -47,6 +62,19 @@ export class PostsService {
 
   deletePosts() {
     console.log('Delete posts');
-    return this.http.delete(`${this.url}/posts.json`);
+    return this.http
+      .delete(`${this.url}/posts.json`, {
+        observe: 'events',
+        responseType: 'text',
+      })
+      .pipe(
+        tap((event) => {
+          console.log(event);
+
+          if (event.type === HttpEventType.Response) {
+            console.log(event.body);
+          }
+        })
+      );
   }
 }
